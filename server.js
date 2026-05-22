@@ -17,6 +17,7 @@ app.post('/find-glaze', async (req, res) => {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     });
     const glazes = await glazeRes.json();
+    console.log('Supabase glazes response:', JSON.stringify(glazes).substring(0, 500));
     const glazeArray = Array.isArray(glazes) ? glazes : [];
 
     const input = described_look.toLowerCase();
