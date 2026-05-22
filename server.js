@@ -17,41 +17,65 @@ app.post('/find-glaze', async (req, res) => {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     });
     const glazes = await glazeRes.json();
-    console.log('Supabase glazes response:', JSON.stringify(glazes).substring(0, 500));
     const glazeArray = Array.isArray(glazes) ? glazes : [];
 
-    const input = described_look.toLowerCase();
-const input = described_look.toLowerCase();
+    console.log('Supabase returned glazes:', glazeArray.length);
 
-let match;
-if (input.includes('warmer')) {
-  match = glazeArray.find(g => {
-    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
-    return kw.some(k => ['warm','orange','red','earthy','rustic'].includes(k));
-  });
-} else if (input.includes('cooler')) {
-  match = glazeArray.find(g => {
-    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
-    return kw.some(k => ['cool','blue','grey','calm','ocean'].includes(k));
-  });
-} else {
-  match = glazeArray.find(g => {
-    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
-    const searchable = `${g.name} ${g.description} ${g.finish} ${kw.join(' ')}`.toLowerCase();
-    return input.split(' ').some(word => word.length > 3 && searchable.includes(word));
-  });
-}
-match = match || glazeArray[0];
+    const input = described_look.toLowerCase();
+
+    const warmKeywords =    ['warm','orange','red','earthy','rustic','terracotta','cozy','autumn'];
+    const coolKeywords =    ['cool','blue','grey','calm','ocean','minimal','stone'];
+    const darkKeywords =    ['dark','moody','black','charcoal','dramatic','bold'];
+    const freshKeywords =   ['fresh','botanical','green','nature','plant','forest','sage','olive'];
+    const glossyKeywords =  ['glossy','elegant','shiny','pearl','white','clean','light'];
+    const matteKeywords =   ['matte','earthy','rough','natural','rustic','mud'];
+
+    const score = (glaze, targetWords) => {
+      const kw = typeof glaze.keywords === 'string' ? JSON.parse(glaze.keywords) : (glaze.keywords || []);
+      const searchable = `${glaze.name} ${glaze.description} ${glaze.finish} ${kw.join(' ')}`.toLowerCase();
+      return targetWords.filter(w => searchable.includes(w)).length;
+    };
+
+    let targetWords = input.split(' ').filter(w => w.length > 2);
+    if (input.includes('warmer'))                          targetWords = warmKeywords;
+    else if (input.includes('cooler'))                     targetWords = coolKeywords;
+    else if (input.includes('dark') || input.includes('moody'))    targetWords = darkKeywords;
+    else if (input.includes('fresh') || input.includes('botanical')) targetWords = freshKeywords;
+    else if (input.includes('glossy') || input.includes('elegant')) targetWords = glossyKeywords;
+    else if (input.includes('matte') || input.includes('earthy'))   targetWords = matteKeywords;
+
+    const scored = glazeArray
+      .map(g => ({ g, s: score(g, targetWords) }))
+      .sort((a, b) => b.s - a.s);
+
+    const match = scored[0].s > 0 ? scored[0].g : glazeArray[0];
+
+    console.log('Matched glaze:', match ? match.name : 'none');
 
     await fetch(`${SUPABASE_URL}/rest/v1/glaze_preferences`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ customer_name, customer_email, described_look, suggested_glaze: match ? match.name : 'unknown' })
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        customer_name,
+        customer_email,
+        described_look,
+        suggested_glaze: match ? match.name : 'unknown'
+      })
     });
 
-    res.json({ glaze_name: match ? match.name : 'None found', description: match ? match.description : '', finish: match ? match.finish : '' });
+    res.json({
+      glaze_name: match ? match.name : 'None found',
+      description: match ? match.description : '',
+      finish: match ? match.finish : ''
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error('Error in /find-glaze:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -59,13 +83,22 @@ match = match || glazeArray[0];
 app.post('/log-faq', async (req, res) => {
   try {
     const { question_asked, category, bot_answer } = req.body;
+
     await fetch(`${SUPABASE_URL}/rest/v1/faq_logs`, {
       method: 'POST',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
       body: JSON.stringify({ question_asked, category, bot_answer })
     });
+
     res.json({ success: true });
+
   } catch (err) {
+    console.error('Error in /log-faq:', err);
     res.status(500).json({ error: err.message });
   }
 });
