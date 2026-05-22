@@ -21,7 +21,8 @@ app.post('/find-glaze', async (req, res) => {
 
     const input = described_look.toLowerCase();
 const match = glazeArray.find(g => {
-  const searchable = `${g.name} ${g.description} ${g.finish} ${(g.keywords || []).join(' ')}`.toLowerCase();
+  const keywords = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
+  const searchable = `${g.name} ${g.description} ${g.finish} ${keywords.join(' ')}`.toLowerCase();
   return input.split(' ').some(word => word.length > 3 && searchable.includes(word));
 }) || glazeArray[0];
 
