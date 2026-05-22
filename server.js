@@ -21,11 +21,27 @@ app.post('/find-glaze', async (req, res) => {
     const glazeArray = Array.isArray(glazes) ? glazes : [];
 
     const input = described_look.toLowerCase();
-const match = glazeArray.find(g => {
-  const keywords = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
-  const searchable = `${g.name} ${g.description} ${g.finish} ${keywords.join(' ')}`.toLowerCase();
-  return input.split(' ').some(word => word.length > 3 && searchable.includes(word));
-}) || glazeArray[0];
+const input = described_look.toLowerCase();
+
+let match;
+if (input.includes('warmer')) {
+  match = glazeArray.find(g => {
+    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
+    return kw.some(k => ['warm','orange','red','earthy','rustic'].includes(k));
+  });
+} else if (input.includes('cooler')) {
+  match = glazeArray.find(g => {
+    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
+    return kw.some(k => ['cool','blue','grey','calm','ocean'].includes(k));
+  });
+} else {
+  match = glazeArray.find(g => {
+    const kw = typeof g.keywords === 'string' ? JSON.parse(g.keywords) : (g.keywords || []);
+    const searchable = `${g.name} ${g.description} ${g.finish} ${kw.join(' ')}`.toLowerCase();
+    return input.split(' ').some(word => word.length > 3 && searchable.includes(word));
+  });
+}
+match = match || glazeArray[0];
 
     await fetch(`${SUPABASE_URL}/rest/v1/glaze_preferences`, {
       method: 'POST',
